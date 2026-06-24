@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="grad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#edf4f0" />
+      <stop offset="100%" stop-color="#94a89a" />
+    </radialGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#grad)" />
+  <!-- Cute stylized shirt icon -->
+  <path d="M256,120 C230,120 220,140 220,150 L160,180 L180,240 L210,230 L210,380 C210,390 220,400 230,400 L282,400 C292,400 302,390 302,380 L302,230 L332,240 L352,180 L292,150 C292,140 282,120 256,120 Z" fill="#ffffff" filter="drop-shadow(0px 8px 12px rgba(45, 42, 38, 0.15))" />
+  <!-- Small details: buttons -->
+  <circle cx="256" cy="220" r="8" fill="#7a8e80" />
+  <circle cx="256" cy="260" r="8" fill="#7a8e80" />
+  <circle cx="256" cy="300" r="8" fill="#7a8e80" />
+</svg>

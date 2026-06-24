@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+estoque.db
+data/
+.git
+.agents
+.gemini
+*.log

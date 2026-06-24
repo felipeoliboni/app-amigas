@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Amigas - Controle de Estoque</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Amigas Estoque">
+  <meta name="theme-color" content="#fcf8f2">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+
+  <!-- Google Fonts (Outfit) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="icon" href="/logo.png" type="image/png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="logo-area">
+        <img src="/logo.png" alt="Logo Amigas do Bem" class="header-logo">
+        <h1>Amigas do Bem</h1>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Main Scrollable Container -->
+  <main class="app-content">
+    
+    <!-- 1. DASHBOARD VIEW -->
+    <section id="view-dashboard" class="view-section active">
+      <h2 class="view-title">Peças em Estoque</h2>
+      <div class="dash-items-stock-list" id="dash-items-stock-list">
+        <!-- Dynamically populated -->
+      </div>
+    </section>
+
+    <!-- 2. INVENTORY VIEW -->
+    <section id="view-inventory" class="view-section">
+      <div class="view-header-sticky">
+        <h2 class="view-title">Estoque de Peças</h2>
+      </div>
+
+      <!-- Inventory Items List -->
+      <div class="inventory-list" id="inventory-items-container">
+        <!-- Dynamically populated -->
+      </div>
+    </section>
+
+    <!-- 3. ADD ITEM VIEW -->
+    <section id="view-add-item" class="view-section">
+      <h2 class="view-title">Cadastrar Nova Peça</h2>
+      <p class="view-subtitle">Adicione um novo produto ao estoque do enxoval.</p>
+
+      <form id="add-item-form" class="app-form">
+        <div class="form-group">
+          <label for="form-name">Nome do Produto *</label>
+          <input type="text" id="form-name" required placeholder="Ex: Mijão Soft Canelado">
+        </div>
+
+        <div class="form-group">
+          <label for="form-description">Descrição (Opcional)</label>
+          <textarea id="form-description" rows="3" placeholder="Detalhes, cor, fabricante, etc."></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary">Salvar Produto</button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="navigateTo('view-dashboard')" id="nav-btn-view-dashboard">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" onclick="navigateTo('view-inventory')" id="nav-btn-view-inventory">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+      <span>Estoque</span>
+    </button>
+    <button class="nav-item" onclick="navigateTo('view-add-item')" id="nav-btn-view-add-item">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Novo Item</span>
+    </button>
+  </nav>
+
+  <script src="/app.js"></script>
+</body>
+</html>
