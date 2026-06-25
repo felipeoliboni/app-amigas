@@ -193,6 +193,25 @@ app.post('/api/stock/adjust', async (req, res) => {
   }
 });
 
+// Get outputs history
+app.get('/api/outputs', async (req, res) => {
+  try {
+    const outputs = await db.all(`
+      SELECT h.id, h.size, h.type, h.quantity, h.timestamp, i.name as item_name, c.name as category_name
+      FROM stock_history h
+      JOIN items i ON h.item_id = i.id
+      JOIN categories c ON i.category_id = c.id
+      WHERE h.type = 'OUT'
+      ORDER BY h.timestamp DESC
+      LIMIT 50
+    `);
+    res.json(outputs);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao carregar histórico de saídas.' });
+  }
+});
+
 // Fallback index.html for Single Page Application navigation
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

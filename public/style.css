@@ -935,3 +935,40 @@ body {
   background-color: #d6647d;
 }
 
+/* Header row for title and action buttons */
+.view-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.view-header-row .view-title {
+  margin-bottom: 0;
+}
+
+/* Secondary Button styling */
+.btn-secondary {
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+  border: 1px solid var(--border-color);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+

@@ -22,6 +22,22 @@ document.addEventListener('DOMContentLoaded', () => {
     addItemForm.addEventListener('submit', handleAddItemSubmit);
   }
 
+  // Register Saída Form events
+  const addOutputForm = document.getElementById('add-output-form');
+  if (addOutputForm) {
+    addOutputForm.addEventListener('submit', handleAddOutputSubmit);
+  }
+
+  const outputItemSelect = document.getElementById('output-item-select');
+  if (outputItemSelect) {
+    outputItemSelect.addEventListener('change', handleOutputItemChange);
+  }
+
+  const outputSizeSelect = document.getElementById('output-size-select');
+  if (outputSizeSelect) {
+    outputSizeSelect.addEventListener('change', handleOutputSizeChange);
+  }
+
   // Register Search Input events
   const searchInput = document.getElementById('search-input');
   const searchClear = document.getElementById('search-clear');
@@ -152,6 +168,9 @@ function navigateTo(viewId) {
     fetchItems();
   } else if (viewId === 'view-inventory') {
     fetchItems();
+  } else if (viewId === 'view-outputs') {
+    fetchItems();
+    fetchOutputsHistory();
   }
 }
 
@@ -220,6 +239,7 @@ async function fetchItems() {
 
   renderInventory();
   renderDashboardItemsList();
+  populateOutputsForm();
 }
 
 // Category filter action
@@ -609,4 +629,286 @@ function showLoader() {
 
 function hideLoader() {
   // Can hide spinner if needed
+}
+
+// ----------------------------------------------------
+// PDF EXPORT AND OUTPUTS MANAGEMENT
+// ----------------------------------------------------
+
+// Export stock report to PDF using jsPDF
+function exportStockToPDF() {
+  try {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+      showToast('Erro: Biblioteca PDF não carregada.');
+      return;
+    }
+    const doc = new jsPDF();
+    
+    // Header styling
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(43, 76, 22); // --text-primary (#2b4c16)
+    doc.text("Amigas do Bem", 14, 20);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(90, 122, 64); // --text-secondary
+    doc.text("Relatório de Controle de Estoque", 14, 27);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(139, 168, 115); // --text-light
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR');
+    doc.text(`Gerado em: ${formattedDate}`, 14, 34);
+    
+    // Construct table rows
+    const tableRows = [];
+    state.items.forEach(item => {
+      if (item.requires_sizes === 1) {
+        item.stock.forEach(s => {
+          tableRows.push([
+            item.name,
+            item.category_name,
+            s.size,
+            s.quantity.toString()
+          ]);
+        });
+      } else {
+        tableRows.push([
+          item.name,
+          item.category_name,
+          'Único',
+          item.total_quantity.toString()
+        ]);
+      }
+    });
+    
+    doc.autoTable({
+      startY: 40,
+      head: [['Produto', 'Categoria', 'Tamanho', 'Quantidade']],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [122, 179, 41], // --primary
+        textColor: [255, 255, 255],
+        fontStyle: 'bold' 
+      },
+      styles: { 
+        font: 'helvetica', 
+        fontSize: 9,
+        textColor: [43, 76, 22] 
+      },
+      alternateRowStyles: {
+        fillColor: [245, 250, 240] // --bg-primary
+      },
+      margin: { top: 40 }
+    });
+    
+    const fileDate = now.toISOString().split('T')[0];
+    doc.save(`relatorio_estoque_${fileDate}.pdf`);
+    showToast('PDF exportado com sucesso!');
+  } catch (error) {
+    console.error('PDF Export Error:', error);
+    showToast('Erro ao exportar PDF.');
+  }
+}
+
+// Populate the product dropdown in Saídas form
+function populateOutputsForm() {
+  const itemSelect = document.getElementById('output-item-select');
+  if (!itemSelect) return;
+
+  const previousValue = itemSelect.value;
+  itemSelect.innerHTML = '<option value="" disabled selected>Selecione um produto</option>';
+  
+  state.items.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.id;
+    option.textContent = item.name;
+    itemSelect.appendChild(option);
+  });
+
+  if (previousValue && state.items.some(item => item.id == previousValue)) {
+    itemSelect.value = previousValue;
+  } else {
+    const sizeSelect = document.getElementById('output-size-select');
+    if (sizeSelect) {
+      sizeSelect.innerHTML = '<option value="" disabled selected>Selecione um produto primeiro</option>';
+    }
+    const hint = document.getElementById('output-stock-hint');
+    if (hint) hint.textContent = '';
+  }
+}
+
+// Handle product change in Saídas form
+function handleOutputItemChange(e) {
+  const itemId = parseInt(e.target.value);
+  const item = state.items.find(i => i.id === itemId);
+  const sizeSelect = document.getElementById('output-size-select');
+  const sizeGroup = document.getElementById('output-size-group');
+  
+  if (!item || !sizeSelect) return;
+  
+  sizeSelect.innerHTML = '';
+  
+  if (item.requires_sizes === 1) {
+    sizeGroup.style.display = 'flex';
+    sizeSelect.required = true;
+    sizeSelect.innerHTML = '<option value="" disabled selected>Selecione o tamanho</option>';
+    
+    item.stock.forEach(s => {
+      const option = document.createElement('option');
+      option.value = s.size;
+      option.textContent = `${s.size} (Disp: ${s.quantity})`;
+      sizeSelect.appendChild(option);
+    });
+    
+    // Clear hint until size is chosen
+    const hint = document.getElementById('output-stock-hint');
+    if (hint) hint.textContent = '';
+  } else {
+    sizeGroup.style.display = 'none';
+    sizeSelect.required = false;
+    sizeSelect.innerHTML = `<option value="U" selected>Único (Disp: ${item.total_quantity})</option>`;
+    updateOutputStockHint(item, 'U');
+  }
+}
+
+// Handle size change in Saídas form
+function handleOutputSizeChange(e) {
+  const itemId = parseInt(document.getElementById('output-item-select').value);
+  const item = state.items.find(i => i.id === itemId);
+  if (!item) return;
+  
+  const size = e.target.value;
+  updateOutputStockHint(item, size);
+}
+
+// Update output stock hint text
+function updateOutputStockHint(item, size) {
+  const hint = document.getElementById('output-stock-hint');
+  if (!hint) return;
+  
+  const stockObj = item.stock.find(s => s.size === size);
+  const qty = stockObj ? stockObj.quantity : 0;
+  
+  hint.textContent = `Estoque disponível: ${qty} unidade(s).`;
+}
+
+// Handle form submission for registering an outflow (saída)
+async function handleAddOutputSubmit(e) {
+  e.preventDefault();
+  
+  const itemSelect = document.getElementById('output-item-select');
+  const sizeSelect = document.getElementById('output-size-select');
+  const qtyInput = document.getElementById('output-qty-input');
+  
+  if (!itemSelect || !sizeSelect || !qtyInput) return;
+  
+  const itemId = parseInt(itemSelect.value);
+  const size = sizeSelect.value;
+  const quantity = parseInt(qtyInput.value);
+  
+  if (!itemId || !size || isNaN(quantity) || quantity <= 0) {
+    showToast('Dados inválidos. Preencha todos os campos corretamente.');
+    return;
+  }
+  
+  // Validate stock level client-side first
+  const item = state.items.find(i => i.id === itemId);
+  if (item) {
+    const stockObj = item.stock.find(s => s.size === size);
+    const currentQty = stockObj ? stockObj.quantity : 0;
+    if (quantity > currentQty) {
+      showToast(`Erro: Quantidade de saída (${quantity}) excede o estoque disponível (${currentQty}).`);
+      return;
+    }
+  }
+  
+  showLoader();
+  try {
+    const res = await fetch('/api/stock/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemId,
+        size,
+        type: 'OUT',
+        quantity
+      })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Erro ao registrar saída.');
+    }
+    
+    showToast('Saída registrada com sucesso!');
+    
+    // Reset form fields
+    qtyInput.value = 1;
+    
+    // Refresh lists and UI state
+    await fetchItems();
+    await fetchOutputsHistory();
+    await fetchDashboard();
+    
+    // Trigger change event to update the available quantity select text / hint
+    itemSelect.dispatchEvent(new Event('change'));
+  } catch (error) {
+    console.error('Error registering output:', error);
+    showToast(error.message || 'Erro ao registrar saída.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// Fetch and render the history of outputs
+async function fetchOutputsHistory() {
+  const container = document.getElementById('outputs-history-container');
+  if (!container) return;
+  
+  try {
+    const res = await fetch('/api/outputs');
+    if (!res.ok) throw new Error('Failed to fetch output history');
+    
+    const outputs = await res.json();
+    
+    if (outputs.length === 0) {
+      container.innerHTML = `
+        <div class="timeline-empty" style="padding: 20px 10px;">
+          <p>Nenhuma saída registrada recentemente.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = '';
+    outputs.forEach(m => {
+      const isSizeU = m.size === 'U';
+      const sizeDesc = isSizeU ? '' : ` (${m.size})`;
+      
+      // Format Date (HH:MM - DD/MM)
+      const dateObj = new Date(m.timestamp);
+      const time = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const date = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      
+      const div = document.createElement('div');
+      div.className = 'timeline-item';
+      
+      div.innerHTML = `
+        <div class="timeline-badge t-out">-${m.quantity}</div>
+        <div class="timeline-info">
+          <span class="timeline-title">${m.item_name}<span>${sizeDesc}</span></span>
+          <span class="timeline-time">${time} - ${date}</span>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  } catch (error) {
+    console.error('Error fetching outputs history:', error);
+    container.innerHTML = `<p style="color: var(--accent-out); font-size: 13px;">Erro ao carregar histórico.</p>`;
+  }
 }
