@@ -828,14 +828,12 @@ function handleAddOutputSubmit(e) {
   const itemSelect = document.getElementById('output-item-select');
   const sizeSelect = document.getElementById('output-size-select');
   const qtyInput = document.getElementById('output-qty-input');
-  const valueInput = document.getElementById('output-value-input');
   
   if (!itemSelect || !sizeSelect || !qtyInput) return;
   
   const itemId = parseInt(itemSelect.value);
   const size = sizeSelect.value;
   const quantity = parseInt(qtyInput.value);
-  const value = valueInput ? parseFloat(valueInput.value) || 0 : 0;
   
   if (!itemId || !size || isNaN(quantity) || quantity <= 0) {
     showToast('Dados inválidos. Preencha todos os campos corretamente.');
@@ -859,20 +857,17 @@ function handleAddOutputSubmit(e) {
   
   if (existingIndex !== -1) {
     state.outputsCart[existingIndex].quantity += quantity;
-    state.outputsCart[existingIndex].value = value;
   } else {
     state.outputsCart.push({
       itemId,
       name: item.name,
       size,
-      quantity,
-      value
+      quantity
     });
   }
   
   showToast('Item adicionado à sacola!');
   qtyInput.value = 1;
-  if (valueInput) valueInput.value = '0.00';
   
   // Refresh cart rendering
   renderCart();
@@ -890,6 +885,10 @@ function renderCart() {
   if (state.outputsCart.length === 0) {
     section.classList.add('hidden');
     container.innerHTML = '';
+    const totalValInput = document.getElementById('cart-total-value-input');
+    if (totalValInput) {
+      totalValInput.value = '0.00';
+    }
     return;
   }
   
@@ -901,16 +900,11 @@ function renderCart() {
     row.className = 'cart-item-row';
     
     const sizeDesc = item.size === 'U' ? 'Tamanho Único' : `Tamanho ${item.size}`;
-    const unitValue = item.value || 0;
-    const totalValue = unitValue * item.quantity;
-    const valueDesc = unitValue > 0 
-      ? ` | R$ ${unitValue.toFixed(2)}/un (Total: R$ ${totalValue.toFixed(2)})` 
-      : '';
     
     row.innerHTML = `
       <div class="cart-item-info">
         <span class="cart-item-name">${item.name}</span>
-        <span class="cart-item-details">${sizeDesc} <span class="cart-item-qty-badge">${item.quantity} un</span>${valueDesc}</span>
+        <span class="cart-item-details">${sizeDesc} <span class="cart-item-qty-badge">${item.quantity} un</span></span>
       </div>
       <button class="btn-cart-remove" onclick="removeFromCart(${index})">Remover</button>
     `;
@@ -943,13 +937,16 @@ async function handleSubmitCart() {
       size: c.size,
       type: 'OUT',
       quantity: c.quantity,
-      value: c.value || 0
+      value: 0
     }));
+    
+    const totalValInput = document.getElementById('cart-total-value-input');
+    const totalValue = totalValInput ? parseFloat(totalValInput.value) || 0 : 0;
     
     const res = await fetch('/api/stock/adjust/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: payload })
+      body: JSON.stringify({ items: payload, totalValue })
     });
     
     const data = await res.json();
@@ -959,6 +956,9 @@ async function handleSubmitCart() {
     
     showToast('Todas as saídas foram registradas com sucesso!');
     state.outputsCart = [];
+    if (totalValInput) {
+      totalValInput.value = '0.00';
+    }
     renderCart();
     
     // Refresh all lists and views

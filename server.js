@@ -225,7 +225,7 @@ app.get('/api/outputs', async (req, res) => {
 
 // Batch stock adjustment (for shopping cart output checkouts)
 app.post('/api/stock/adjust/batch', async (req, res) => {
-  const { items } = req.body;
+  const { items, totalValue } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Lista de itens vazia ou inválida.' });
@@ -242,6 +242,8 @@ app.post('/api/stock/adjust/batch', async (req, res) => {
   try {
     // Run all adjustments inside a database transaction for data safety
     await db.run('BEGIN TRANSACTION');
+
+    const itemDescriptions = [];
 
     for (const item of items) {
       const { itemId, size, type, quantity, value } = item;
@@ -271,16 +273,22 @@ app.post('/api/stock/adjust/batch', async (req, res) => {
       await db.run('UPDATE stock SET quantity = ? WHERE item_id = ? AND size = ?', [newQty, itemId, size]);
       await db.run('INSERT INTO stock_history (item_id, size, type, quantity, value) VALUES (?, ?, ?, ?, ?)', [itemId, size, type, quantity, value || 0]);
 
-      // If it's a valued outflow, automatically register in cash flow as IN (sale/revenue)
-      if (type === 'OUT' && value && value > 0) {
+      // Collect product name and size for description if totalValue is present
+      if (totalValue && totalValue > 0) {
         const product = await db.get('SELECT name FROM items WHERE id = ?', [itemId]);
         const pName = product ? product.name : `ID ${itemId}`;
-        const totalValue = value * quantity;
-        await db.run(
-          'INSERT INTO cash_flow (type, description, value) VALUES (?, ?, ?)',
-          ['IN', `Saída: ${pName} (${size === 'U' ? 'Único' : size}) x${quantity}`, totalValue]
-        );
+        const sizeDesc = size === 'U' ? 'Único' : size;
+        itemDescriptions.push(`${quantity}x ${pName} (${sizeDesc})`);
       }
+    }
+
+    // Register a single entry in cash flow if totalValue is provided and positive
+    if (totalValue && totalValue > 0) {
+      const description = `Saída de Sacola: ${itemDescriptions.join(', ')}`;
+      await db.run(
+        'INSERT INTO cash_flow (type, description, value) VALUES (?, ?, ?)',
+        ['IN', description, totalValue]
+      );
     }
 
     await db.run('COMMIT');
