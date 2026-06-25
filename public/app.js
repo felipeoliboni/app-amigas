@@ -9,7 +9,8 @@ let state = {
   filterCategory: 'all',
   searchQuery: '',
   // Holds selected size for each item (itemId -> selectedSize)
-  selectedSizes: {}
+  selectedSizes: {},
+  outputsCart: []
 };
 
 // DOM Elements & Initialization
@@ -36,6 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const outputSizeSelect = document.getElementById('output-size-select');
   if (outputSizeSelect) {
     outputSizeSelect.addEventListener('change', handleOutputSizeChange);
+  }
+
+  // Register Cart Submit Button event
+  const btnSubmitCart = document.getElementById('btn-submit-cart');
+  if (btnSubmitCart) {
+    btnSubmitCart.addEventListener('click', handleSubmitCart);
   }
 
   // Register Search Input events
@@ -786,19 +793,27 @@ function handleOutputSizeChange(e) {
   updateOutputStockHint(item, size);
 }
 
-// Update output stock hint text
+// Update output stock hint text (subtracting items currently staged in the cart)
 function updateOutputStockHint(item, size) {
   const hint = document.getElementById('output-stock-hint');
   if (!hint) return;
   
   const stockObj = item.stock.find(s => s.size === size);
-  const qty = stockObj ? stockObj.quantity : 0;
+  const available = stockObj ? stockObj.quantity : 0;
   
-  hint.textContent = `Estoque disponível: ${qty} unidade(s).`;
+  const cartItem = state.outputsCart.find(c => c.itemId === item.id && c.size === size);
+  const cartQty = cartItem ? cartItem.quantity : 0;
+  const remaining = available - cartQty;
+  
+  if (cartQty > 0) {
+    hint.textContent = `Estoque disponível: ${available} unidade(s) (${remaining} restantes fora do carrinho).`;
+  } else {
+    hint.textContent = `Estoque disponível: ${available} unidade(s).`;
+  }
 }
 
-// Handle form submission for registering an outflow (saída)
-async function handleAddOutputSubmit(e) {
+// Handle form submission to add an outflow item to the cart
+function handleAddOutputSubmit(e) {
   e.preventDefault();
   
   const itemSelect = document.getElementById('output-item-select');
@@ -816,50 +831,123 @@ async function handleAddOutputSubmit(e) {
     return;
   }
   
-  // Validate stock level client-side first
   const item = state.items.find(i => i.id === itemId);
-  if (item) {
-    const stockObj = item.stock.find(s => s.size === size);
-    const currentQty = stockObj ? stockObj.quantity : 0;
-    if (quantity > currentQty) {
-      showToast(`Erro: Quantidade de saída (${quantity}) excede o estoque disponível (${currentQty}).`);
-      return;
-    }
+  if (!item) return;
+  
+  const stockObj = item.stock.find(s => s.size === size);
+  const maxAvailable = stockObj ? stockObj.quantity : 0;
+  
+  // Calculate existing quantity of this item/size in the cart
+  const existingIndex = state.outputsCart.findIndex(c => c.itemId === itemId && c.size === size);
+  const cartQty = existingIndex !== -1 ? state.outputsCart[existingIndex].quantity : 0;
+  
+  if (cartQty + quantity > maxAvailable) {
+    showToast(`Erro: Estoque insuficiente! Disponível: ${maxAvailable}, No carrinho: ${cartQty}`);
+    return;
   }
+  
+  if (existingIndex !== -1) {
+    state.outputsCart[existingIndex].quantity += quantity;
+  } else {
+    state.outputsCart.push({
+      itemId,
+      name: item.name,
+      size,
+      quantity
+    });
+  }
+  
+  showToast('Item adicionado ao carrinho!');
+  qtyInput.value = 1;
+  
+  // Refresh cart rendering
+  renderCart();
+  
+  // Update stock hint text to show remaining available
+  updateOutputStockHint(item, size);
+}
+
+// Render cart contents in Saídas view
+function renderCart() {
+  const section = document.getElementById('outputs-cart-section');
+  const container = document.getElementById('cart-items-container');
+  if (!section || !container) return;
+  
+  if (state.outputsCart.length === 0) {
+    section.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  
+  section.classList.remove('hidden');
+  container.innerHTML = '';
+  
+  state.outputsCart.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'cart-item-row';
+    
+    const sizeDesc = item.size === 'U' ? 'Tamanho Único' : `Tamanho ${item.size}`;
+    
+    row.innerHTML = `
+      <div class="cart-item-info">
+        <span class="cart-item-name">${item.name}</span>
+        <span class="cart-item-details">${sizeDesc} <span class="cart-item-qty-badge">${item.quantity} un</span></span>
+      </div>
+      <button class="btn-cart-remove" onclick="removeFromCart(${index})">Remover</button>
+    `;
+    
+    container.appendChild(row);
+  });
+}
+
+// Remove item from cart list
+function removeFromCart(index) {
+  state.outputsCart.splice(index, 1);
+  renderCart();
+  
+  // Trigger update to the dropdown hint
+  const itemSelect = document.getElementById('output-item-select');
+  if (itemSelect) {
+    itemSelect.dispatchEvent(new Event('change'));
+  }
+  showToast('Item removido do carrinho.');
+}
+
+// Submit all items in cart to the server as a batch
+async function handleSubmitCart() {
+  if (state.outputsCart.length === 0) return;
   
   showLoader();
   try {
-    const res = await fetch('/api/stock/adjust', {
+    const payload = state.outputsCart.map(c => ({
+      itemId: c.itemId,
+      size: c.size,
+      type: 'OUT',
+      quantity: c.quantity
+    }));
+    
+    const res = await fetch('/api/stock/adjust/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        itemId,
-        size,
-        type: 'OUT',
-        quantity
-      })
+      body: JSON.stringify({ items: payload })
     });
     
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Erro ao registrar saída.');
+      throw new Error(data.error || 'Erro ao finalizar saídas.');
     }
     
-    showToast('Saída registrada com sucesso!');
+    showToast('Todas as saídas foram registradas com sucesso!');
+    state.outputsCart = [];
+    renderCart();
     
-    // Reset form fields
-    qtyInput.value = 1;
-    
-    // Refresh lists and UI state
+    // Refresh all lists and views
     await fetchItems();
     await fetchOutputsHistory();
     await fetchDashboard();
-    
-    // Trigger change event to update the available quantity select text / hint
-    itemSelect.dispatchEvent(new Event('change'));
   } catch (error) {
-    console.error('Error registering output:', error);
-    showToast(error.message || 'Erro ao registrar saída.');
+    console.error('Error submitting batch outputs:', error);
+    showToast(error.message || 'Erro ao processar carrinho.');
   } finally {
     hideLoader();
   }

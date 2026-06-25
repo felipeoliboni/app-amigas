@@ -212,6 +212,68 @@ app.get('/api/outputs', async (req, res) => {
   }
 });
 
+// Batch stock adjustment (for shopping cart output checkouts)
+app.post('/api/stock/adjust/batch', async (req, res) => {
+  const { items } = req.body;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Lista de itens vazia ou inválida.' });
+  }
+
+  // First pass: validate request data
+  for (const item of items) {
+    const { itemId, size, type, quantity } = item;
+    if (!itemId || !size || !type || !quantity || quantity <= 0) {
+      return res.status(400).json({ error: 'Dados de item inválidos no carrinho.' });
+    }
+  }
+
+  try {
+    // Run all adjustments inside a database transaction for data safety
+    await db.run('BEGIN TRANSACTION');
+
+    for (const item of items) {
+      const { itemId, size, type, quantity } = item;
+
+      const stockEntry = await db.get('SELECT * FROM stock WHERE item_id = ? AND size = ?', [itemId, size]);
+      if (!stockEntry) {
+        await db.run('ROLLBACK');
+        return res.status(404).json({ error: `Estoque não encontrado para o produto ID ${itemId} / tamanho ${size}.` });
+      }
+
+      let newQty = stockEntry.quantity;
+      if (type === 'IN') {
+        newQty += quantity;
+      } else if (type === 'OUT') {
+        newQty -= quantity;
+        if (newQty < 0) {
+          await db.run('ROLLBACK');
+          const product = await db.get('SELECT name FROM items WHERE id = ?', [itemId]);
+          const pName = product ? product.name : `ID ${itemId}`;
+          return res.status(400).json({ error: `A saída de "${pName}" (${size}) excede o estoque disponível.` });
+        }
+      } else {
+        await db.run('ROLLBACK');
+        return res.status(400).json({ error: 'Tipo de movimentação inválido.' });
+      }
+
+      await db.run('UPDATE stock SET quantity = ? WHERE item_id = ? AND size = ?', [newQty, itemId, size]);
+      await db.run('INSERT INTO stock_history (item_id, size, type, quantity) VALUES (?, ?, ?, ?)', [itemId, size, type, quantity]);
+    }
+
+    await db.run('COMMIT');
+    res.json({ success: true, message: 'Carrinho processado com sucesso.' });
+  } catch (error) {
+    try {
+      await db.run('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('Rollback failed:', rollbackErr);
+    }
+    console.error('Batch adjustment error:', error);
+    res.status(500).json({ error: 'Erro no servidor ao processar carrinho de saídas.' });
+  }
+});
+
 // Fallback index.html for Single Page Application navigation
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
