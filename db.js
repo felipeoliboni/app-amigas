@@ -86,7 +86,7 @@ async function seedSampleDataIfEmpty() {
       console.log('No items found. Seeding initial categories and items...');
 
       const targetCategories = [
-        { name: 'Conjuntos por tamanho', requiresSizes: 1 },
+        { name: 'Conjuntos', requiresSizes: 1 },
         { name: 'Sapatinhos', requiresSizes: 0 },
         { name: 'Luvas', requiresSizes: 0 },
         { name: 'Toucas', requiresSizes: 0 },

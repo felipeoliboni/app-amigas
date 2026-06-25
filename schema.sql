@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS stock_history (
 
 -- Seed initial categories as requested
 INSERT OR IGNORE INTO categories (name, requires_sizes) VALUES
-('Conjuntos por tamanho', 1),
+('Conjuntos', 1),
 ('Sapatinhos', 0),
 ('Luvas', 0),
 ('Toucas', 0),
