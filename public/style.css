@@ -971,7 +971,7 @@ body {
   transform: scale(0.97);
 }
 
-/* Carrinho list styling */
+/* Sacola list styling */
 .cart-items-list {
   display: flex;
   flex-direction: column;

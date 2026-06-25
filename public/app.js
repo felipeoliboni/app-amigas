@@ -806,7 +806,7 @@ function updateOutputStockHint(item, size) {
   const remaining = available - cartQty;
   
   if (cartQty > 0) {
-    hint.textContent = `Estoque disponível: ${available} unidade(s) (${remaining} restantes fora do carrinho).`;
+    hint.textContent = `Estoque disponível: ${available} unidade(s) (${remaining} restantes fora da sacola).`;
   } else {
     hint.textContent = `Estoque disponível: ${available} unidade(s).`;
   }
@@ -842,7 +842,7 @@ function handleAddOutputSubmit(e) {
   const cartQty = existingIndex !== -1 ? state.outputsCart[existingIndex].quantity : 0;
   
   if (cartQty + quantity > maxAvailable) {
-    showToast(`Erro: Estoque insuficiente! Disponível: ${maxAvailable}, No carrinho: ${cartQty}`);
+    showToast(`Erro: Estoque insuficiente! Disponível: ${maxAvailable}, Na sacola: ${cartQty}`);
     return;
   }
   
@@ -857,7 +857,7 @@ function handleAddOutputSubmit(e) {
     });
   }
   
-  showToast('Item adicionado ao carrinho!');
+  showToast('Item adicionado à sacola!');
   qtyInput.value = 1;
   
   // Refresh cart rendering
@@ -910,7 +910,7 @@ function removeFromCart(index) {
   if (itemSelect) {
     itemSelect.dispatchEvent(new Event('change'));
   }
-  showToast('Item removido do carrinho.');
+  showToast('Item removido da sacola.');
 }
 
 // Submit all items in cart to the server as a batch
@@ -947,7 +947,7 @@ async function handleSubmitCart() {
     await fetchDashboard();
   } catch (error) {
     console.error('Error submitting batch outputs:', error);
-    showToast(error.message || 'Erro ao processar carrinho.');
+    showToast(error.message || 'Erro ao processar sacola.');
   } finally {
     hideLoader();
   }
