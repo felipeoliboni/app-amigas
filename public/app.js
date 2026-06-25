@@ -10,7 +10,8 @@ let state = {
   searchQuery: '',
   // Holds selected size for each item (itemId -> selectedSize)
   selectedSizes: {},
-  outputsCart: []
+  outputsCart: [],
+  cashflow: { transactions: [], totalIn: 0, totalOut: 0, balance: 0 }
 };
 
 // DOM Elements & Initialization
@@ -21,6 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const addItemForm = document.getElementById('add-item-form');
   if (addItemForm) {
     addItemForm.addEventListener('submit', handleAddItemSubmit);
+  }
+
+  // Register Cashflow Form events
+  const cashflowForm = document.getElementById('cashflow-form');
+  if (cashflowForm) {
+    cashflowForm.addEventListener('submit', handleCashflowSubmit);
   }
 
   // Register Saída Form events
@@ -178,6 +185,8 @@ function navigateTo(viewId) {
   } else if (viewId === 'view-outputs') {
     fetchItems();
     fetchOutputsHistory();
+  } else if (viewId === 'view-cashflow') {
+    fetchCashflow();
   }
 }
 
@@ -819,12 +828,14 @@ function handleAddOutputSubmit(e) {
   const itemSelect = document.getElementById('output-item-select');
   const sizeSelect = document.getElementById('output-size-select');
   const qtyInput = document.getElementById('output-qty-input');
+  const valueInput = document.getElementById('output-value-input');
   
   if (!itemSelect || !sizeSelect || !qtyInput) return;
   
   const itemId = parseInt(itemSelect.value);
   const size = sizeSelect.value;
   const quantity = parseInt(qtyInput.value);
+  const value = valueInput ? parseFloat(valueInput.value) || 0 : 0;
   
   if (!itemId || !size || isNaN(quantity) || quantity <= 0) {
     showToast('Dados inválidos. Preencha todos os campos corretamente.');
@@ -848,17 +859,20 @@ function handleAddOutputSubmit(e) {
   
   if (existingIndex !== -1) {
     state.outputsCart[existingIndex].quantity += quantity;
+    state.outputsCart[existingIndex].value = value;
   } else {
     state.outputsCart.push({
       itemId,
       name: item.name,
       size,
-      quantity
+      quantity,
+      value
     });
   }
   
   showToast('Item adicionado à sacola!');
   qtyInput.value = 1;
+  if (valueInput) valueInput.value = '0.00';
   
   // Refresh cart rendering
   renderCart();
@@ -887,11 +901,16 @@ function renderCart() {
     row.className = 'cart-item-row';
     
     const sizeDesc = item.size === 'U' ? 'Tamanho Único' : `Tamanho ${item.size}`;
+    const unitValue = item.value || 0;
+    const totalValue = unitValue * item.quantity;
+    const valueDesc = unitValue > 0 
+      ? ` | R$ ${unitValue.toFixed(2)}/un (Total: R$ ${totalValue.toFixed(2)})` 
+      : '';
     
     row.innerHTML = `
       <div class="cart-item-info">
         <span class="cart-item-name">${item.name}</span>
-        <span class="cart-item-details">${sizeDesc} <span class="cart-item-qty-badge">${item.quantity} un</span></span>
+        <span class="cart-item-details">${sizeDesc} <span class="cart-item-qty-badge">${item.quantity} un</span>${valueDesc}</span>
       </div>
       <button class="btn-cart-remove" onclick="removeFromCart(${index})">Remover</button>
     `;
@@ -923,7 +942,8 @@ async function handleSubmitCart() {
       itemId: c.itemId,
       size: c.size,
       type: 'OUT',
-      quantity: c.quantity
+      quantity: c.quantity,
+      value: c.value || 0
     }));
     
     const res = await fetch('/api/stock/adjust/batch', {
@@ -998,5 +1018,167 @@ async function fetchOutputsHistory() {
   } catch (error) {
     console.error('Error fetching outputs history:', error);
     container.innerHTML = `<p style="color: var(--accent-out); font-size: 13px;">Erro ao carregar histórico.</p>`;
+  }
+}
+
+// FETCH AND RENDER CASH FLOW
+async function fetchCashflow() {
+  try {
+    const res = await fetch('/api/cashflow');
+    if (!res.ok) throw new Error('Failed to fetch cash flow data');
+    
+    state.cashflow = await res.json();
+    renderCashflow();
+  } catch (error) {
+    console.error('Error fetching cashflow:', error);
+    showToast('Erro ao carregar dados do financeiro.');
+  }
+}
+
+function renderCashflow() {
+  // Update balance card elements
+  const balanceEl = document.getElementById('cf-balance');
+  const totalInEl = document.getElementById('cf-total-in');
+  const totalOutEl = document.getElementById('cf-total-out');
+  
+  if (balanceEl && totalInEl && totalOutEl) {
+    const balance = state.cashflow.balance || 0;
+    const totalIn = state.cashflow.totalIn || 0;
+    const totalOut = state.cashflow.totalOut || 0;
+    
+    balanceEl.textContent = `R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    totalInEl.textContent = `R$ ${totalIn.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    totalOutEl.textContent = `R$ ${totalOut.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    
+    // Change balance text color depending on sign
+    if (balance < 0) {
+      balanceEl.style.color = 'var(--accent-out)';
+    } else {
+      balanceEl.style.color = 'var(--text-primary)';
+    }
+  }
+  
+  // Render ledger list
+  const container = document.getElementById('cf-ledger-container');
+  if (!container) return;
+  
+  if (!state.cashflow.transactions || state.cashflow.transactions.length === 0) {
+    container.innerHTML = `
+      <div class="timeline-empty" style="padding: 20px 10px;">
+        <p>Nenhum lançamento registrado no caixa.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = '';
+  state.cashflow.transactions.forEach(t => {
+    const isIncome = t.type === 'IN';
+    const typeClass = isIncome ? 't-in' : 't-out';
+    const valueSign = isIncome ? '+' : '-';
+    
+    // Format Date (HH:MM - DD/MM)
+    const dateObj = new Date(t.timestamp);
+    const time = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const date = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    
+    const div = document.createElement('div');
+    div.className = 'timeline-item cf-ledger-row';
+    div.style.justifyContent = 'space-between';
+    div.style.borderBottom = '1px dashed var(--border-color)';
+    div.style.paddingBottom = '10px';
+    div.style.marginBottom = '10px';
+    
+    div.innerHTML = `
+      <div style="display: flex; gap: 12px; align-items: center; flex: 1;">
+        <div class="timeline-badge ${typeClass}" style="font-size: 10px; width: 32px; height: 32px;">
+          ${isIncome ? 'Ent' : 'Saí'}
+        </div>
+        <div class="timeline-info">
+          <span class="timeline-title">${t.description}</span>
+          <span class="timeline-time">${time} - ${date}</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="cf-value-text ${typeClass}" style="font-weight: 700; font-size: 14px;">
+          ${valueSign} R$ ${t.value.toFixed(2)}
+        </span>
+        <button class="btn-cf-delete" onclick="deleteCashflowTransaction(${t.id})" style="background: none; border: none; color: var(--accent-out); cursor: pointer; padding: 4px; font-size: 16px;" title="Remover lançamento">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// HANDLE NEW MANUAL CASH TRANSACTION
+async function handleCashflowSubmit(e) {
+  e.preventDefault();
+  
+  const typeSelect = document.getElementById('cf-type-select');
+  const valueInput = document.getElementById('cf-value-input');
+  const descInput = document.getElementById('cf-desc-input');
+  
+  if (!typeSelect || !valueInput || !descInput) return;
+  
+  const type = typeSelect.value;
+  const value = parseFloat(valueInput.value);
+  const description = descInput.value.trim();
+  
+  if (!type || isNaN(value) || value <= 0 || !description) {
+    showToast('Por favor, preencha todos os campos corretamente.');
+    return;
+  }
+  
+  showLoader();
+  try {
+    const res = await fetch('/api/cashflow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, description, value })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    
+    showToast('Lançamento financeiro registrado com sucesso!');
+    e.target.reset();
+    
+    // Refresh cash flow data
+    await fetchCashflow();
+  } catch (error) {
+    console.error('Error submitting cashflow:', error);
+    showToast(error.message || 'Erro ao registrar lançamento.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// DELETE CASH TRANSACTION
+async function deleteCashflowTransaction(id) {
+  if (!confirm('Deseja realmente excluir este lançamento financeiro?')) return;
+  
+  showLoader();
+  try {
+    const res = await fetch(`/api/cashflow/${id}`, {
+      method: 'DELETE'
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    
+    showToast('Lançamento removido.');
+    await fetchCashflow();
+  } catch (error) {
+    console.error('Error deleting cashflow:', error);
+    showToast(error.message || 'Erro ao excluir lançamento.');
+  } finally {
+    hideLoader();
   }
 }

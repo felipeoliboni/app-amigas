@@ -69,7 +69,11 @@ function initDatabase() {
         console.error('Error running schema initialization:', err);
       } else {
         console.log('Database initialized successfully.');
-        seedSampleDataIfEmpty();
+        // Migration to add 'value' column to stock_history if database already existed
+        db.run("ALTER TABLE stock_history ADD COLUMN value REAL DEFAULT 0", (alterErr) => {
+          // Ignore error (e.g. duplicate column name) as it means it's already there
+          seedSampleDataIfEmpty();
+        });
       }
     });
   } catch (err) {

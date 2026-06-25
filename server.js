@@ -157,7 +157,7 @@ app.post('/api/items', async (req, res) => {
 
 // 5. Quick stock adjustment
 app.post('/api/stock/adjust', async (req, res) => {
-  const { itemId, size, type, quantity } = req.body; // type: 'IN' or 'OUT', quantity: positive integer
+  const { itemId, size, type, quantity, value } = req.body; // type: 'IN' or 'OUT', quantity: positive integer, value: optional price
 
   if (!itemId || !size || !type || !quantity || quantity <= 0) {
     return res.status(400).json({ error: 'Dados de ajuste inválidos.' });
@@ -184,7 +184,18 @@ app.post('/api/stock/adjust', async (req, res) => {
 
     // Update database inside a transaction simulation (run sequentially)
     await db.run('UPDATE stock SET quantity = ? WHERE item_id = ? AND size = ?', [newQty, itemId, size]);
-    await db.run('INSERT INTO stock_history (item_id, size, type, quantity) VALUES (?, ?, ?, ?)', [itemId, size, type, quantity]);
+    await db.run('INSERT INTO stock_history (item_id, size, type, quantity, value) VALUES (?, ?, ?, ?, ?)', [itemId, size, type, quantity, value || 0]);
+
+    // If it's a valued outflow, automatically register in cash flow as IN (sale/revenue)
+    if (type === 'OUT' && value && value > 0) {
+      const product = await db.get('SELECT name FROM items WHERE id = ?', [itemId]);
+      const pName = product ? product.name : `ID ${itemId}`;
+      const totalValue = value * quantity;
+      await db.run(
+        'INSERT INTO cash_flow (type, description, value) VALUES (?, ?, ?)',
+        ['IN', `Saída: ${pName} (${size === 'U' ? 'Único' : size}) x${quantity}`, totalValue]
+      );
+    }
 
     res.json({ success: true, newQuantity: newQty });
   } catch (error) {
@@ -233,7 +244,7 @@ app.post('/api/stock/adjust/batch', async (req, res) => {
     await db.run('BEGIN TRANSACTION');
 
     for (const item of items) {
-      const { itemId, size, type, quantity } = item;
+      const { itemId, size, type, quantity, value } = item;
 
       const stockEntry = await db.get('SELECT * FROM stock WHERE item_id = ? AND size = ?', [itemId, size]);
       if (!stockEntry) {
@@ -258,7 +269,18 @@ app.post('/api/stock/adjust/batch', async (req, res) => {
       }
 
       await db.run('UPDATE stock SET quantity = ? WHERE item_id = ? AND size = ?', [newQty, itemId, size]);
-      await db.run('INSERT INTO stock_history (item_id, size, type, quantity) VALUES (?, ?, ?, ?)', [itemId, size, type, quantity]);
+      await db.run('INSERT INTO stock_history (item_id, size, type, quantity, value) VALUES (?, ?, ?, ?, ?)', [itemId, size, type, quantity, value || 0]);
+
+      // If it's a valued outflow, automatically register in cash flow as IN (sale/revenue)
+      if (type === 'OUT' && value && value > 0) {
+        const product = await db.get('SELECT name FROM items WHERE id = ?', [itemId]);
+        const pName = product ? product.name : `ID ${itemId}`;
+        const totalValue = value * quantity;
+        await db.run(
+          'INSERT INTO cash_flow (type, description, value) VALUES (?, ?, ?)',
+          ['IN', `Saída: ${pName} (${size === 'U' ? 'Único' : size}) x${quantity}`, totalValue]
+        );
+      }
     }
 
     await db.run('COMMIT');
@@ -271,6 +293,66 @@ app.post('/api/stock/adjust/batch', async (req, res) => {
     }
     console.error('Batch adjustment error:', error);
     res.status(500).json({ error: 'Erro no servidor ao processar carrinho de saídas.' });
+  }
+});
+
+// 6. Get cash flow logs and summaries
+app.get('/api/cashflow', async (req, res) => {
+  try {
+    const transactions = await db.all('SELECT * FROM cash_flow ORDER BY timestamp DESC LIMIT 100');
+    
+    const summary = await db.get(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN type = 'IN' THEN value ELSE 0 END), 0) as totalIn,
+        COALESCE(SUM(CASE WHEN type = 'OUT' THEN value ELSE 0 END), 0) as totalOut
+      FROM cash_flow
+    `);
+
+    res.json({
+      transactions,
+      totalIn: summary.totalIn,
+      totalOut: summary.totalOut,
+      balance: summary.totalIn - summary.totalOut
+    });
+  } catch (error) {
+    console.error('Error fetching cashflow:', error);
+    res.status(500).json({ error: 'Erro ao carregar dados do financeiro/caixa.' });
+  }
+});
+
+// 7. Add manual cash flow transaction
+app.post('/api/cashflow', async (req, res) => {
+  const { type, description, value } = req.body;
+
+  if (!type || !description || value === undefined || value < 0) {
+    return res.status(400).json({ error: 'Dados de transação inválidos.' });
+  }
+
+  try {
+    await db.run(
+      'INSERT INTO cash_flow (type, description, value) VALUES (?, ?, ?)',
+      [type, description, value]
+    );
+    res.status(201).json({ success: true, message: 'Lançamento financeiro registrado.' });
+  } catch (error) {
+    console.error('Error creating cashflow transaction:', error);
+    res.status(500).json({ error: 'Erro ao registrar lançamento financeiro.' });
+  }
+});
+
+// 8. Delete cash flow transaction
+app.delete('/api/cashflow/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await db.run('DELETE FROM cash_flow WHERE id = ?', [id]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Lançamento não encontrado.' });
+    }
+    res.json({ success: true, message: 'Lançamento financeiro removido.' });
+  } catch (error) {
+    console.error('Error deleting cashflow transaction:', error);
+    res.status(500).json({ error: 'Erro ao remover lançamento financeiro.' });
   }
 });
 

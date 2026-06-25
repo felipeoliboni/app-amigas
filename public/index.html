@@ -139,6 +139,11 @@
                         <span class="field-hint" id="output-stock-hint"></span>
                     </div>
 
+                    <div class="form-group">
+                        <label for="output-value-input">Valor Unitário (R$)</label>
+                        <input type="number" id="output-value-input" min="0" step="0.01" value="0.00" placeholder="0,00" />
+                    </div>
+
                     <button type="submit" class="btn-primary">Adicionar à Sacola</button>
                 </form>
 
@@ -156,6 +161,63 @@
                 <h3 class="view-title" style="margin-top: 30px; font-size: 18px;">Histórico de Saídas</h3>
                 <div class="activity-timeline" id="outputs-history-container" style="margin-top: 15px;">
                     <!-- Dynamically populated outputs history -->
+                </div>
+            </section>
+
+            <!-- 5. CASH FLOW VIEW -->
+            <section id="view-cashflow" class="view-section">
+                <h2 class="view-title">Fluxo de Caixa</h2>
+                <p class="view-subtitle">Controle de entradas e saídas de dinheiro.</p>
+
+                <!-- Balance Summary Cards -->
+                <div class="cashflow-summary-grid">
+                    <div class="cashflow-card balance-card">
+                        <span class="cf-card-label">Saldo em Caixa</span>
+                        <span class="cf-card-value" id="cf-balance">R$ 0,00</span>
+                    </div>
+                    <div class="cashflow-card-sub-grid">
+                        <div class="cashflow-card in-card">
+                            <span class="cf-card-label">Total Entradas</span>
+                            <span class="cf-card-value" id="cf-total-in">R$ 0,00</span>
+                        </div>
+                        <div class="cashflow-card out-card">
+                            <span class="cf-card-label">Total Saídas</span>
+                            <span class="cf-card-value" id="cf-total-out">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Cash Flow Transaction Form -->
+                <div class="dashboard-panel" style="margin-top: 20px;">
+                    <div class="panel-header">
+                        <h3 class="panel-title">Novo Lançamento Financeiro</h3>
+                    </div>
+                    <form id="cashflow-form" class="app-form">
+                        <div class="form-group-row" style="display: flex; gap: 12px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="cf-type-select">Tipo *</label>
+                                <select id="cf-type-select" required style="width: 100%;">
+                                    <option value="IN" selected>Entrada (Receita)</option>
+                                    <option value="OUT">Saída (Despesa)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="cf-value-input">Valor (R$) *</label>
+                                <input type="number" id="cf-value-input" required min="0.01" step="0.01" placeholder="0,00" style="width: 100%;" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="cf-desc-input">Descrição *</label>
+                            <input type="text" id="cf-desc-input" required placeholder="Ex: Doação em dinheiro, Compra de tecidos" />
+                        </div>
+                        <button type="submit" class="btn-primary" style="height: 48px; margin-top: 5px;">Lançar no Caixa</button>
+                    </form>
+                </div>
+
+                <!-- Ledger / Transaction History -->
+                <h3 class="view-title" style="margin-top: 30px; font-size: 18px;">Histórico do Caixa</h3>
+                <div class="cashflow-ledger-list" id="cf-ledger-container" style="margin-top: 15px;">
+                    <!-- Dynamically populated -->
                 </div>
             </section>
         </main>
@@ -227,6 +289,26 @@
                     <line x1="12" y1="2" x2="12" y2="15"></line>
                 </svg>
                 <span>Saídas</span>
+            </button>
+            <button
+                class="nav-item"
+                onclick="navigateTo('view-cashflow')"
+                id="nav-btn-view-cashflow"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                <span>Caixa</span>
             </button>
             <button
                 class="nav-item"

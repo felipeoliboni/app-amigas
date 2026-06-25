@@ -1038,4 +1038,101 @@ body {
   background-color: var(--accent-out-light);
 }
 
+/* Cash Flow Styles */
+.cashflow-summary-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.cashflow-card {
+  background-color: var(--bg-secondary);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.balance-card {
+  background-image: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  align-items: center;
+  padding: 20px;
+  text-align: center;
+}
+
+.balance-card .cf-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cashflow-card-sub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.in-card {
+  border-left: 4px solid var(--accent-in);
+}
+
+.in-card .cf-card-value {
+  color: var(--accent-in);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.out-card {
+  border-left: 4px solid var(--accent-out);
+}
+
+.out-card .cf-card-value {
+  color: var(--accent-out);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cf-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cf-value-text.t-in {
+  color: var(--accent-in);
+}
+
+.cf-value-text.t-out {
+  color: var(--accent-out);
+}
+
+.btn-cf-delete svg {
+  stroke: var(--accent-out);
+  transition: transform 0.2s, stroke 0.2s;
+}
+
+.btn-cf-delete:hover svg {
+  transform: scale(1.15);
+  stroke: #d6647d;
+}
+
+.btn-cf-delete:active svg {
+  transform: scale(0.95);
+}
+
+.cf-ledger-row {
+  transition: background-color 0.2s;
+}
+
+.cf-ledger-row:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+
 
