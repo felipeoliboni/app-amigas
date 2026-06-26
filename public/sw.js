@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amigas-estoque-v2';
+const CACHE_NAME = 'amigas-estoque-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -36,7 +36,7 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Fetch Event - Serve cached assets when offline, ignore API routes from caching
+// Fetch Event - Serve fresh from network when online (update cache), fallback to cache when offline
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
@@ -46,13 +46,10 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Cache-first strategy for static assets
+  // Network-First strategy for static assets
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(e.request).then((networkResponse) => {
+    fetch(e.request)
+      .then((networkResponse) => {
         // Cache newly requested static pages/assets on the fly
         if (networkResponse && networkResponse.status === 200 && e.request.method === 'GET') {
           const cacheCopy = networkResponse.clone();
@@ -61,12 +58,18 @@ self.addEventListener('fetch', (e) => {
           });
         }
         return networkResponse;
-      });
-    }).catch(() => {
-      // Offline fallback for page navigation
-      if (e.request.mode === 'navigate') {
-        return caches.match('/index.html');
-      }
-    })
+      })
+      .catch(() => {
+        // Offline fallback - search in cache
+        return caches.match(e.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          // Offline fallback for page navigation
+          if (e.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        });
+      })
   );
 });

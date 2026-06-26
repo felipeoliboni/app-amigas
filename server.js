@@ -6,8 +6,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static frontend files (ensure sw.js is not cached by the browser)
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (path.basename(filePath) === 'sw.js') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // 1. Dashboard summary API
 app.get('/api/dashboard', async (req, res) => {
