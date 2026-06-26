@@ -73,6 +73,7 @@ function initDatabase() {
         db.run("ALTER TABLE stock_history ADD COLUMN value REAL DEFAULT 0", (alterErr) => {
           // Ignore error (e.g. duplicate column name) as it means it's already there
           seedSampleDataIfEmpty();
+          seedMembersAndPaymentsIfEmpty();
         });
       }
     });
@@ -134,6 +135,53 @@ async function seedSampleDataIfEmpty() {
     }
   } catch (err) {
     console.error('Error seeding data:', err);
+  }
+}
+
+async function seedMembersAndPaymentsIfEmpty() {
+  try {
+    const memberCheck = await get('SELECT COUNT(*) as count FROM members');
+    if (memberCheck.count === 0) {
+      console.log('No members found. Seeding initial members and historical payments...');
+      
+      // Default monthly fee
+      await run("INSERT OR IGNORE INTO settings (key, value) VALUES ('monthly_fee', '50.00')");
+      
+      const membersSeed = [
+        { name: 'ADRIANA', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+        { name: 'ALICIA', paidMonths: [1, 2, 3, 4, 5, 6, 7] },
+        { name: 'ARLEANE', paidMonths: [1, 2, 3, 4, 5, 6] },
+        { name: 'BEATRIZ', paidMonths: [1, 2, 3, 4, 5, 6, 7] },
+        { name: 'CARMEN', paidMonths: [1, 2, 3, 4, 5, 6] },
+        { name: 'CLARI', paidMonths: [1, 2, 3, 4, 5] },
+        { name: 'ELI MARIA', paidMonths: [1, 2, 3, 4, 5] },
+        { name: 'ELIZETE', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8] },
+        { name: 'FERNANDA', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+        { name: 'LIGIA', paidMonths: [1, 2, 3] },
+        { name: 'MALIZE', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+        { name: 'MARILENE', paidMonths: [] },
+        { name: 'MORGANA', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+        { name: 'PAOLA', paidMonths: [1, 2, 3, 4, 5, 6] },
+        { name: 'RITA', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+        { name: 'SILVIA', paidMonths: [1, 2, 3, 4, 5, 6] },
+        { name: 'TANIA', paidMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
+      ];
+
+      for (const m of membersSeed) {
+        const result = await run('INSERT INTO members (name) VALUES (?)', [m.name]);
+        const memberId = result.lastID;
+        
+        for (const month of m.paidMonths) {
+          await run(
+            'INSERT INTO monthly_payments (member_id, year, month, paid, value, is_historical) VALUES (?, ?, ?, 1, 50.00, 1)',
+            [memberId, 2026, month]
+          );
+        }
+      }
+      console.log('Members and monthly payments seeded successfully.');
+    }
+  } catch (err) {
+    console.error('Error seeding members:', err);
   }
 }
 

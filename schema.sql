@@ -63,3 +63,32 @@ INSERT OR IGNORE INTO categories (name, requires_sizes) VALUES
 ('Manta soft', 0),
 ('Mantas malhas', 0),
 ('Edredom', 0);
+
+-- Members table
+CREATE TABLE IF NOT EXISTS members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+-- Settings table
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
+-- Monthly payments table
+CREATE TABLE IF NOT EXISTS monthly_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    paid INTEGER DEFAULT 0,
+    value REAL DEFAULT 0,
+    is_historical INTEGER DEFAULT 0,
+    cash_flow_id INTEGER,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (cash_flow_id) REFERENCES cash_flow(id) ON DELETE SET NULL,
+    UNIQUE(member_id, year, month)
+);
+

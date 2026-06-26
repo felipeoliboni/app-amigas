@@ -11,7 +11,13 @@ let state = {
   // Holds selected size for each item (itemId -> selectedSize)
   selectedSizes: {},
   outputsCart: [],
-  cashflow: { transactions: [], totalIn: 0, totalOut: 0, balance: 0 }
+  cashflow: { transactions: [], totalIn: 0, totalOut: 0, balance: 0 },
+  members: [],
+  monthlyFee: 50.00,
+  monthlyPayments: [],
+  mensalidadesActiveTab: 'grid',
+  selectedMensalidadesMonth: new Date().getMonth() + 1,
+  mensalidadesYear: 2026
 };
 
 // DOM Elements & Initialization
@@ -106,8 +112,32 @@ document.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('Service Worker registered successfully.', reg))
+        .then(reg => {
+          console.log('Service Worker registered successfully.', reg);
+          
+          // Check for service worker updates
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('Novo Service Worker instalado. Atualizando a página...');
+                }
+              });
+            }
+          });
+        })
         .catch(err => console.log('Service Worker registration failed:', err));
+    });
+
+    // Detect when a new service worker takes over and automatically refresh the page
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.log('Controller change detected. Reloading page...');
+        window.location.reload();
+      }
     });
   }
 
@@ -153,7 +183,28 @@ function updateOnlineStatus() {
 }
 
 // Navigation controller
+function toggleDrawer() {
+  const drawer = document.getElementById('side-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if (drawer && overlay) {
+    drawer.classList.toggle('open');
+    overlay.classList.toggle('open');
+  }
+}
+
+function closeDrawer() {
+  const drawer = document.getElementById('side-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if (drawer && overlay) {
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+  }
+}
+
 function navigateTo(viewId) {
+  // Close the drawer if open
+  closeDrawer();
+
   // Hide all sections
   document.querySelectorAll('.view-section').forEach(section => {
     section.classList.remove('active');
@@ -167,13 +218,13 @@ function navigateTo(viewId) {
     window.location.hash = viewId;
   }
 
-  // Update navbar items active state
-  document.querySelectorAll('.nav-item').forEach(btn => {
+  // Update side drawer links active state
+  document.querySelectorAll('.drawer-item').forEach(btn => {
     btn.classList.remove('active');
   });
-  const navBtn = document.getElementById(`nav-btn-${viewId}`);
-  if (navBtn) {
-    navBtn.classList.add('active');
+  const drawerBtn = document.getElementById(`drawer-btn-${viewId}`);
+  if (drawerBtn) {
+    drawerBtn.classList.add('active');
   }
 
   // Reload data for target view
@@ -187,6 +238,8 @@ function navigateTo(viewId) {
     fetchOutputsHistory();
   } else if (viewId === 'view-cashflow') {
     fetchCashflow();
+  } else if (viewId === 'view-mensalidades') {
+    fetchMensalidadesData();
   }
 }
 
@@ -525,6 +578,12 @@ function renderInventory() {
           <span class="item-title">${item.name}</span>
           <span class="item-desc">${item.description || 'Sem descrição'}</span>
         </div>
+        <button class="btn-delete-item" onclick="deleteItemCatalog(${item.id})" style="background: none; border: none; color: var(--accent-out); padding: 6px; cursor: pointer; align-self: flex-start; display: flex; align-items: center; justify-content: center;" title="Excluir produto do cadastro">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
       </div>
       
       <div class="stock-control-group">
@@ -1178,6 +1237,370 @@ async function deleteCashflowTransaction(id) {
   } catch (error) {
     console.error('Error deleting cashflow:', error);
     showToast(error.message || 'Erro ao excluir lançamento.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// DELETE ITEM FROM CATALOG
+async function deleteItemCatalog(itemId) {
+  if (!confirm('Tem certeza que deseja excluir esta peça do cadastro? Isso apagará todo o estoque e histórico associados a ela.')) return;
+  showLoader();
+  try {
+    const res = await fetch(`/api/items/${itemId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast('Peça excluída com sucesso!');
+    await fetchItems();
+    await fetchDashboard();
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    showToast(error.message || 'Erro ao excluir peça.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// FETCH MENSALIDADES DATA
+async function fetchMensalidadesData() {
+  showLoader();
+  try {
+    // 1. Fetch monthly fee
+    const feeRes = await fetch('/api/settings/monthly_fee');
+    if (!feeRes.ok) throw new Error('Error fetching fee');
+    const feeData = await feeRes.json();
+    state.monthlyFee = feeData.value;
+    
+    const feeInput = document.getElementById('setting-monthly-fee-input');
+    if (feeInput) {
+      feeInput.value = state.monthlyFee.toFixed(2);
+    }
+
+    // 2. Fetch members
+    const membersRes = await fetch('/api/members');
+    if (!membersRes.ok) throw new Error('Error fetching members');
+    state.members = await membersRes.json();
+
+    // 3. Fetch payments
+    const paymentsRes = await fetch(`/api/monthly_payments/${state.mensalidadesYear}`);
+    if (!paymentsRes.ok) throw new Error('Error fetching payments');
+    state.monthlyPayments = await paymentsRes.json();
+
+    // Render contents based on active tab
+    renderMensalidadesTab();
+  } catch (error) {
+    console.error('Error fetching mensalidades data:', error);
+    showToast('Erro ao carregar dados de mensalidades.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// SAVE MONTHLY FEE
+async function saveMonthlyFeeSetting() {
+  const feeInput = document.getElementById('setting-monthly-fee-input');
+  if (!feeInput) return;
+  const value = parseFloat(feeInput.value);
+  if (isNaN(value) || value < 0) {
+    showToast('Por favor, insira um valor válido.');
+    return;
+  }
+  showLoader();
+  try {
+    const res = await fetch('/api/settings/monthly_fee', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast('Valor da mensalidade atualizado!');
+    state.monthlyFee = value;
+  } catch (error) {
+    console.error('Error saving fee:', error);
+    showToast('Erro ao salvar valor da mensalidade.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// SWITCH MENSALIDADES TAB
+function switchMensalidadesTab(tabId) {
+  state.mensalidadesActiveTab = tabId;
+  
+  // Update tab buttons active class
+  document.querySelectorAll('.mensalidades-tabs .category-pill').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const activeTabBtn = document.getElementById(`tab-mensalidades-${tabId}`);
+  if (activeTabBtn) {
+    activeTabBtn.classList.add('active');
+  }
+
+  // Hide all tab contents, show current one
+  document.getElementById('mensalidades-content-grid').style.display = tabId === 'grid' ? 'block' : 'none';
+  document.getElementById('mensalidades-content-monthly').style.display = tabId === 'monthly' ? 'block' : 'none';
+  document.getElementById('mensalidades-content-list').style.display = tabId === 'list' ? 'block' : 'none';
+
+  renderMensalidadesTab();
+}
+
+// RENDER MENSALIDADES TAB CONTENT
+function renderMensalidadesTab() {
+  if (state.mensalidadesActiveTab === 'grid') {
+    renderMensalidadesGrid();
+  } else if (state.mensalidadesActiveTab === 'monthly') {
+    renderMonthlyPaymentsFilter();
+  } else if (state.mensalidadesActiveTab === 'list') {
+    renderMembersCadastroList();
+  }
+}
+
+// 1. RENDER GENERAL GRID (TABELA GERAL)
+function renderMensalidadesGrid() {
+  const tbody = document.getElementById('mensalidades-table-body');
+  if (!tbody) return;
+
+  if (state.members.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 20px; color: var(--text-light);">Nenhum mensalista cadastrado.</td></tr>`;
+    return;
+  }
+
+  // Create payment map: memberId -> month -> paymentObj
+  const paymentMap = {};
+  state.monthlyPayments.forEach(p => {
+    if (!paymentMap[p.member_id]) {
+      paymentMap[p.member_id] = {};
+    }
+    paymentMap[p.member_id][p.month] = p;
+  });
+
+  tbody.innerHTML = '';
+  state.members.forEach(member => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border-color)';
+    
+    // Member Name cell
+    const nameTd = document.createElement('td');
+    nameTd.style.padding = '12px 10px';
+    nameTd.style.position = 'sticky';
+    nameTd.style.left = '0';
+    nameTd.style.backgroundColor = 'var(--bg-secondary)';
+    nameTd.style.fontWeight = '600';
+    nameTd.style.zIndex = '1';
+    nameTd.style.borderRight = '1px solid var(--border-color)';
+    nameTd.textContent = member.name;
+    tr.appendChild(nameTd);
+
+    // Months columns (1 to 12)
+    for (let month = 1; month <= 12; month++) {
+      const td = document.createElement('td');
+      td.className = 'payment-checkbox-cell';
+      td.style.padding = '8px 4px';
+      td.style.textAlign = 'center';
+      
+      const payment = paymentMap[member.id]?.[month];
+      const isPaid = payment?.paid === 1;
+      const isHistorical = payment?.is_historical === 1;
+
+      let statusClass = 'unpaid';
+      let checkIcon = '';
+      if (isPaid) {
+        statusClass = isHistorical ? 'historical' : 'paid';
+        checkIcon = `
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        `;
+      }
+
+      td.innerHTML = `
+        <div class="payment-status-dot ${statusClass}" title="${isPaid ? (isHistorical ? 'Pago (Histórico)' : 'Pago') : 'Pendente'}">
+          ${checkIcon}
+        </div>
+      `;
+
+      // Toggle action on click
+      td.onclick = () => togglePayment(member.id, month);
+
+      tr.appendChild(td);
+    }
+
+    tbody.appendChild(tr);
+  });
+}
+
+// 2. RENDER MONTHLY FILTER (FILTRO POR MÊS)
+function renderMonthlyPaymentsFilter() {
+  const monthSelect = document.getElementById('filter-payment-month-select');
+  if (!monthSelect) return;
+  const month = parseInt(monthSelect.value);
+  state.selectedMensalidadesMonth = month;
+
+  const unpaidList = document.getElementById('monthly-unpaid-list');
+  const paidList = document.getElementById('monthly-paid-list');
+  const unpaidCount = document.getElementById('monthly-unpaid-count');
+  const paidCount = document.getElementById('monthly-paid-count');
+
+  if (!unpaidList || !paidList || !unpaidCount || !paidCount) return;
+
+  // Get map of paid members for this month
+  const paidMemberIds = new Set(
+    state.monthlyPayments
+      .filter(p => p.month === month && p.paid === 1)
+      .map(p => p.member_id)
+  );
+
+  const paidMembers = [];
+  const unpaidMembers = [];
+
+  state.members.forEach(m => {
+    if (paidMemberIds.has(m.id)) {
+      paidMembers.push(m);
+    } else {
+      unpaidMembers.push(m);
+    }
+  });
+
+  unpaidCount.textContent = unpaidMembers.length;
+  paidCount.textContent = paidMembers.length;
+
+  unpaidList.innerHTML = '';
+  paidList.innerHTML = '';
+
+  if (unpaidMembers.length === 0) {
+    unpaidList.innerHTML = `<p style="text-align: center; color: var(--text-light); padding: 10px; font-size: 13px;">Ninguém pendente este mês! 🎉</p>`;
+  } else {
+    unpaidMembers.forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'monthly-member-row is-unpaid-row';
+      row.innerHTML = `
+        <span class="member-name-text">${m.name}</span>
+        <span class="payment-toggle-badge p-unpaid">Marcar Pago</span>
+      `;
+      row.onclick = () => togglePayment(m.id, month);
+      unpaidList.appendChild(row);
+    });
+  }
+
+  if (paidMembers.length === 0) {
+    paidList.innerHTML = `<p style="text-align: center; color: var(--text-light); padding: 10px; font-size: 13px;">Nenhum pagamento registrado para este mês.</p>`;
+  } else {
+    paidMembers.forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'monthly-member-row is-paid-row';
+      row.innerHTML = `
+        <span class="member-name-text">${m.name}</span>
+        <span class="payment-toggle-badge p-paid">Pago</span>
+      `;
+      row.onclick = () => togglePayment(m.id, month);
+      paidList.appendChild(row);
+    });
+  }
+}
+
+// 3. RENDER CADASTRO DE NOMES (LISTA DE CADASTRADOS PARA DELETAR)
+function renderMembersCadastroList() {
+  const container = document.getElementById('members-cadastro-list');
+  if (!container) return;
+
+  if (state.members.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: var(--text-light); padding: 20px;">Nenhum mensalista cadastrado.</p>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  state.members.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'member-cadastro-card';
+    card.innerHTML = `
+      <span class="member-name-text" style="font-size: 15px;">${m.name}</span>
+      <button onclick="deleteMember(${m.id})" style="background: none; border: none; color: var(--accent-out); cursor: pointer; padding: 6px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 4px;" title="Excluir cadastro">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Apagar
+      </button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// TOGGLE PAYMENT STATUS (API CALL)
+async function togglePayment(memberId, month) {
+  try {
+    const res = await fetch('/api/monthly_payments/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        memberId,
+        year: state.mensalidadesYear,
+        month
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    showToast(data.paid === 1 ? 'Mensalidade registrada com sucesso!' : 'Mensalidade desmarcada.');
+    
+    // Refresh mensalidades payments
+    const paymentsRes = await fetch(`/api/monthly_payments/${state.mensalidadesYear}`);
+    if (!paymentsRes.ok) throw new Error('Error updating payments');
+    state.monthlyPayments = await paymentsRes.json();
+
+    // Re-render
+    renderMensalidadesTab();
+  } catch (error) {
+    console.error('Error toggling payment:', error);
+    showToast(error.message || 'Erro ao registrar pagamento.');
+  }
+}
+
+// SHOW ADD MEMBER PROMPT AND CALL API
+async function showAddMemberPrompt() {
+  const name = prompt('Digite o nome do novo mensalista:');
+  if (!name || name.trim() === '') return;
+
+  showLoader();
+  try {
+    const res = await fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    showToast(`Mensalista "${data.name}" cadastrado!`);
+    await fetchMensalidadesData();
+  } catch (error) {
+    console.error('Error adding member:', error);
+    showToast(error.message || 'Erro ao cadastrar mensalista.');
+  } finally {
+    hideLoader();
+  }
+}
+
+// DELETE MEMBER (API CALL)
+async function deleteMember(id) {
+  const member = state.members.find(m => m.id === id);
+  const memberName = member ? member.name : `ID ${id}`;
+  if (!confirm(`Tem certeza que deseja apagar o cadastro de "${memberName}"? Isso excluirá todo o histórico de pagamentos de mensalidades associados a ela.`)) return;
+
+  showLoader();
+  try {
+    const res = await fetch(`/api/members/${id}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    showToast('Mensalista excluído.');
+    await fetchMensalidadesData();
+  } catch (error) {
+    console.error('Error deleting member:', error);
+    showToast(error.message || 'Erro ao excluir mensalista.');
   } finally {
     hideLoader();
   }

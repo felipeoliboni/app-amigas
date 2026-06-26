@@ -40,8 +40,63 @@
                     />
                     <h1>Amigas do Bem</h1>
                 </div>
+                <button id="menu-toggle-btn" class="menu-toggle-btn" onclick="toggleDrawer()" style="background: none; border: none; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; transition: background-color 0.2s;">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
             </div>
         </header>
+
+        <!-- Side Navigation Drawer -->
+        <div id="side-drawer" class="side-drawer">
+            <div class="drawer-header">
+                <div class="logo-area">
+                    <img src="/logo.png" alt="Logo Amigas do Bem" class="header-logo" />
+                    <span style="font-weight: 700; color: var(--text-primary); font-size: 16px;">Amigas do Bem</span>
+                </div>
+                <button id="drawer-close-btn" class="btn-close" onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <nav class="drawer-nav">
+                <a href="#" onclick="navigateTo('view-dashboard'); closeDrawer(); return false;" class="drawer-item active" id="drawer-btn-view-dashboard">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                    <span>Painel Geral (Estoque)</span>
+                </a>
+                <a href="#" onclick="navigateTo('view-inventory'); closeDrawer(); return false;" class="drawer-item" id="drawer-btn-view-inventory">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <span>Gerenciar Estoque</span>
+                </a>
+                <a href="#" onclick="navigateTo('view-outputs'); closeDrawer(); return false;" class="drawer-item" id="drawer-btn-view-outputs">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-5"></path><polyline points="15 5 12 2 9 5"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                    <span>Registrar Saída (Sacola)</span>
+                </a>
+                <a href="#" onclick="navigateTo('view-cashflow'); closeDrawer(); return false;" class="drawer-item" id="drawer-btn-view-cashflow">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <span>Fluxo de Caixa</span>
+                </a>
+                <a href="#" onclick="navigateTo('view-add-item'); closeDrawer(); return false;" class="drawer-item" id="drawer-btn-view-add-item">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Cadastrar Novo Item</span>
+                </a>
+                <a href="#" onclick="navigateTo('view-mensalidades'); closeDrawer(); return false;" class="drawer-item" id="drawer-btn-view-mensalidades">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Mensalidades 2026</span>
+                </a>
+            </nav>
+        </div>
+        <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
 
         <!-- Notification Toast -->
         <div id="toast" class="toast hidden"></div>
@@ -219,117 +274,123 @@
                     <!-- Dynamically populated -->
                 </div>
             </section>
-        </main>
 
-        <!-- Bottom Navigation Bar -->
-        <nav class="bottom-nav">
-            <button
-                class="nav-item active"
-                onclick="navigateTo('view-dashboard')"
-                id="nav-btn-view-dashboard"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <rect x="3" y="3" width="7" height="9"></rect>
-                    <rect x="14" y="3" width="7" height="5"></rect>
-                    <rect x="14" y="12" width="7" height="9"></rect>
-                    <rect x="3" y="16" width="7" height="5"></rect>
-                </svg>
-                <span>Dashboard</span>
-            </button>
-            <button
-                class="nav-item"
-                onclick="navigateTo('view-inventory')"
-                id="nav-btn-view-inventory"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path
-                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                    ></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                </svg>
-                <span>Estoque</span>
-            </button>
-            <button
-                class="nav-item"
-                onclick="navigateTo('view-outputs')"
-                id="nav-btn-view-outputs"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M10 9H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-5"></path>
-                    <polyline points="15 5 12 2 9 5"></polyline>
-                    <line x1="12" y1="2" x2="12" y2="15"></line>
-                </svg>
-                <span>Saídas</span>
-            </button>
-            <button
-                class="nav-item"
-                onclick="navigateTo('view-cashflow')"
-                id="nav-btn-view-cashflow"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                </svg>
-                <span>Caixa</span>
-            </button>
-            <button
-                class="nav-item"
-                onclick="navigateTo('view-add-item')"
-                id="nav-btn-view-add-item"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Novo Item</span>
-            </button>
-        </nav>
+            <!-- 6. MENSALIDADES VIEW -->
+            <section id="view-mensalidades" class="view-section">
+                <div class="view-header-row">
+                    <h2 class="view-title">Mensalidades 2026</h2>
+                    <button class="btn-secondary" id="btn-add-member" onclick="showAddMemberPrompt()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <line x1="19" y1="8" x2="19" y2="14"></line>
+                            <line x1="16" y1="11" x2="22" y2="11"></line>
+                        </svg>
+                        Novo Mensalista
+                    </button>
+                </div>
+                <p class="view-subtitle">Controle de mensalidades das Amigas do Bem.</p>
+
+                <!-- Monthly Fee Value Setting -->
+                <div class="dashboard-panel" style="margin-bottom: 20px;">
+                    <div class="panel-header" style="margin-bottom: 8px;">
+                        <h3 class="panel-title">Valor da Mensalidade</h3>
+                    </div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div style="position: relative; flex: 1;">
+                            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-secondary);">R$</span>
+                            <input type="number" id="setting-monthly-fee-input" min="0" step="0.01" value="50.00" style="padding-left: 36px; width: 100%; height: 44px; font-weight: 600;" />
+                        </div>
+                        <button onclick="saveMonthlyFeeSetting()" class="btn-primary" style="height: 44px; padding: 0 20px; font-size: 14px; margin-top: 0; box-shadow: none;">Salvar</button>
+                    </div>
+                </div>
+
+                <!-- Tab Switcher (Tabela vs Filtro Mensal vs Lista) -->
+                <div class="mensalidades-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <button id="tab-mensalidades-grid" class="category-pill active" onclick="switchMensalidadesTab('grid')">Tabela Geral</button>
+                    <button id="tab-mensalidades-monthly" class="category-pill" onclick="switchMensalidadesTab('monthly')">Filtro por Mês</button>
+                    <button id="tab-mensalidades-list" class="category-pill" onclick="switchMensalidadesTab('list')">Cadastro de Nomes</button>
+                </div>
+
+                <!-- Content 1: Tabela Geral -->
+                <div id="mensalidades-content-grid" class="tab-content active-tab-content">
+                    <div class="table-responsive-container" style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 14px; background-color: var(--bg-secondary); box-shadow: var(--card-shadow);">
+                        <table class="mensalidades-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                            <thead>
+                                <tr style="background-color: var(--bg-tertiary); color: var(--text-primary); border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 12px 10px; font-weight: 600; position: sticky; left: 0; background-color: var(--bg-tertiary); z-index: 2;">Nome</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Jan</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Fev</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Mar</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Abr</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Mai</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Jun</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Jul</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Ago</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Set</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Out</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Nov</th>
+                                    <th style="padding: 12px 6px; text-align: center;">Dez</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mensalidades-table-body">
+                                <!-- Dynamically populated rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Content 2: Filtro por Mês -->
+                <div id="mensalidades-content-monthly" class="tab-content" style="display: none;">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="filter-payment-month-select" style="font-weight: 600; margin-bottom: 6px; display: block;">Escolha o Mês:</label>
+                        <select id="filter-payment-month-select" onchange="renderMonthlyPaymentsFilter()" style="height: 48px; border-radius: 12px; padding: 10px; width: 100%;">
+                            <option value="1">Janeiro</option>
+                            <option value="2">Fevereiro</option>
+                            <option value="3">Março</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Maio</option>
+                            <option value="6">Junho</option>
+                            <option value="7">Julho</option>
+                            <option value="8" selected>Agosto</option>
+                            <option value="9">Setembro</option>
+                            <option value="10">Outubro</option>
+                            <option value="11">Novembro</option>
+                            <option value="12">Dezembro</option>
+                        </select>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                        <div>
+                            <h4 style="color: var(--accent-out); font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--accent-out);"></span>
+                                Ainda Não Pagaram (<span id="monthly-unpaid-count">0</span>)
+                            </h4>
+                            <div id="monthly-unpaid-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Unpaid list -->
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--accent-in); font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--accent-in);"></span>
+                                Já Pagaram (<span id="monthly-paid-count">0</span>)
+                            </h4>
+                            <div id="monthly-paid-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Paid list -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content 3: Cadastro de Nomes -->
+                <div id="mensalidades-content-list" class="tab-content" style="display: none;">
+                    <p class="view-subtitle" style="margin-bottom: 15px;">Aqui você pode apagar cadastros de mensalistas se tiver adicionado errado.</p>
+                    <div id="members-cadastro-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Members with delete buttons -->
+                    </div>
+                </div>
+            </section>
+        </main>
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>

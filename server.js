@@ -6,11 +6,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-// Serve static frontend files (ensure sw.js is not cached by the browser)
+// Serve static frontend files with cache control configurations
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
-    if (path.basename(filePath) === 'sw.js') {
+    const filename = path.basename(filePath);
+    if (filename === 'sw.js') {
+      // Service worker: never cache under any circumstances
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else if (filename.endsWith('.html') || filename.endsWith('.js') || filename.endsWith('.css') || filename === 'manifest.json') {
+      // Force the browser to validate these files before using cached versions
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     }
@@ -369,6 +376,178 @@ app.delete('/api/cashflow/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting cashflow transaction:', error);
     res.status(500).json({ error: 'Erro ao remover lançamento financeiro.' });
+  }
+});
+
+// 9. Delete item from stock catalog
+app.delete('/api/items/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM items WHERE id = ?', [id]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Item não encontrado.' });
+    }
+    res.json({ success: true, message: 'Item removido com sucesso.' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ error: 'Erro ao excluir item do estoque.' });
+  }
+});
+
+// 10. Get monthly fee setting
+app.get('/api/settings/monthly_fee', async (req, res) => {
+  try {
+    const setting = await db.get("SELECT value FROM settings WHERE key = 'monthly_fee'");
+    res.json({ value: setting ? parseFloat(setting.value) : 50.00 });
+  } catch (error) {
+    console.error('Error getting monthly fee:', error);
+    res.status(500).json({ error: 'Erro ao carregar valor da mensalidade.' });
+  }
+});
+
+// 11. Set monthly fee setting
+app.post('/api/settings/monthly_fee', async (req, res) => {
+  const { value } = req.body;
+  if (value === undefined || isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+    return res.status(400).json({ error: 'Valor da mensalidade inválido.' });
+  }
+  try {
+    await db.run(
+      "INSERT INTO settings (key, value) VALUES ('monthly_fee', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      [parseFloat(value).toFixed(2)]
+    );
+    res.json({ success: true, message: 'Valor da mensalidade atualizado.' });
+  } catch (error) {
+    console.error('Error setting monthly fee:', error);
+    res.status(500).json({ error: 'Erro ao salvar valor da mensalidade.' });
+  }
+});
+
+// 12. Get all members
+app.get('/api/members', async (req, res) => {
+  try {
+    const members = await db.all('SELECT * FROM members ORDER BY name ASC');
+    res.json(members);
+  } catch (error) {
+    console.error('Error getting members:', error);
+    res.status(500).json({ error: 'Erro ao carregar mensalistas.' });
+  }
+});
+
+// 13. Create new member
+app.post('/api/members', async (req, res) => {
+  const { name } = req.body;
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Nome é obrigatório.' });
+  }
+  try {
+    const result = await db.run('INSERT INTO members (name) VALUES (?)', [name.trim().toUpperCase()]);
+    res.status(201).json({ id: result.lastID, name: name.trim().toUpperCase() });
+  } catch (error) {
+    console.error('Error adding member:', error);
+    if (error.message.includes('UNIQUE')) {
+      return res.status(400).json({ error: 'Este nome já está cadastrado.' });
+    }
+    res.status(500).json({ error: 'Erro ao cadastrar mensalista.' });
+  }
+});
+
+// 14. Delete member
+app.delete('/api/members/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM members WHERE id = ?', [id]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Mensalista não encontrado.' });
+    }
+    res.json({ success: true, message: 'Mensalista removido com sucesso.' });
+  } catch (error) {
+    console.error('Error deleting member:', error);
+    res.status(500).json({ error: 'Erro ao excluir mensalista.' });
+  }
+});
+
+// 15. Get payments for a specific year
+app.get('/api/monthly_payments/:year', async (req, res) => {
+  const { year } = req.params;
+  try {
+    const payments = await db.all(
+      'SELECT * FROM monthly_payments WHERE year = ?',
+      [parseInt(year)]
+    );
+    res.json(payments);
+  } catch (error) {
+    console.error('Error getting monthly payments:', error);
+    res.status(500).json({ error: 'Erro ao carregar pagamentos de mensalidades.' });
+  }
+});
+
+// 16. Toggle a monthly payment
+app.post('/api/monthly_payments/toggle', async (req, res) => {
+  const { memberId, year, month } = req.body;
+  if (!memberId || !year || !month) {
+    return res.status(400).json({ error: 'Dados incompletos.' });
+  }
+
+  try {
+    // Check if payment already exists
+    const payment = await db.get(
+      'SELECT * FROM monthly_payments WHERE member_id = ? AND year = ? AND month = ?',
+      [memberId, year, month]
+    );
+
+    const member = await db.get('SELECT name FROM members WHERE id = ?', [memberId]);
+    if (!member) {
+      return res.status(404).json({ error: 'Mensalista não encontrado.' });
+    }
+
+    if (payment && payment.paid === 1) {
+      // It is currently paid, toggle to UNPAID (delete/remove)
+      if (payment.is_historical === 1) {
+        // Historical payment - user says: "os que ja estao só fica marcado de 2026 mesmo"
+        // Since it is historical, it has no linked cash flow, so just delete the payment record.
+        await db.run('DELETE FROM monthly_payments WHERE id = ?', [payment.id]);
+      } else {
+        // Not historical, check cash_flow_id
+        if (payment.cash_flow_id) {
+          await db.run('DELETE FROM cash_flow WHERE id = ?', [payment.cash_flow_id]);
+        }
+        await db.run('DELETE FROM monthly_payments WHERE id = ?', [payment.id]);
+      }
+      return res.json({ success: true, paid: 0 });
+    } else {
+      // It is currently unpaid, toggle to PAID
+      // Get current monthly fee
+      const feeSetting = await db.get("SELECT value FROM settings WHERE key = 'monthly_fee'");
+      const monthlyFee = feeSetting ? parseFloat(feeSetting.value) : 50.00;
+
+      // Insert cash flow entry
+      const monthNames = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      ];
+      const monthName = monthNames[month - 1] || month;
+      const description = `Mensalidade ${monthName}/${year}: ${member.name}`;
+
+      const cfResult = await db.run(
+        'INSERT INTO cash_flow (type, description, value) VALUES (?, ?, ?)',
+        ['IN', description, monthlyFee]
+      );
+      const cashFlowId = cfResult.lastID;
+
+      // Insert or update payment record
+      await db.run(
+        `INSERT INTO monthly_payments (member_id, year, month, paid, value, is_historical, cash_flow_id) 
+         VALUES (?, ?, ?, 1, ?, 0, ?)
+         ON CONFLICT(member_id, year, month) DO UPDATE SET paid = 1, value = excluded.value, is_historical = 0, cash_flow_id = excluded.cash_flow_id`,
+        [memberId, year, month, monthlyFee, cashFlowId]
+      );
+
+      return res.json({ success: true, paid: 1, value: monthlyFee });
+    }
+  } catch (error) {
+    console.error('Error toggling payment:', error);
+    res.status(500).json({ error: 'Erro ao atualizar pagamento.' });
   }
 });
 
