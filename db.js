@@ -71,9 +71,11 @@ function initDatabase() {
         console.log('Database initialized successfully.');
         // Migration to add 'value' column to stock_history if database already existed
         db.run("ALTER TABLE stock_history ADD COLUMN value REAL DEFAULT 0", (alterErr) => {
-          // Ignore error (e.g. duplicate column name) as it means it's already there
-          seedSampleDataIfEmpty();
-          seedMembersAndPaymentsIfEmpty();
+          // Ignore error and run next migration
+          db.run("ALTER TABLE members ADD COLUMN start_month INTEGER DEFAULT 1", (memberErr) => {
+            seedSampleDataIfEmpty();
+            seedMembersAndPaymentsIfEmpty();
+          });
         });
       }
     });

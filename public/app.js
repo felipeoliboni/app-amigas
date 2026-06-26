@@ -1402,6 +1402,7 @@ function renderMensalidadesGrid() {
       const payment = paymentMap[member.id]?.[month];
       const isPaid = payment?.paid === 1;
       const isHistorical = payment?.is_historical === 1;
+      const isBeforeStart = month < (member.start_month || 1);
 
       let statusClass = 'unpaid';
       let checkIcon = '';
@@ -1412,16 +1413,25 @@ function renderMensalidadesGrid() {
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         `;
+      } else if (isBeforeStart) {
+        statusClass = 'unpaid'; // keeps background default but handles style
+        checkIcon = '<span style="color: var(--text-light); font-size: 11px;">-</span>';
       }
 
       td.innerHTML = `
-        <div class="payment-status-dot ${statusClass}" title="${isPaid ? (isHistorical ? 'Pago (Histórico)' : 'Pago') : 'Pendente'}">
+        <div class="payment-status-dot ${statusClass}" style="${isBeforeStart && !isPaid ? 'border: none; background: transparent; cursor: not-allowed;' : ''}" title="${isPaid ? (isHistorical ? 'Pago (Histórico)' : 'Pago') : (isBeforeStart ? 'Não cobrado (antes do início)' : 'Pendente')}">
           ${checkIcon}
         </div>
       `;
 
       // Toggle action on click
-      td.onclick = () => togglePayment(member.id, month);
+      td.onclick = () => {
+        if (isBeforeStart && !isPaid) {
+          showToast('Este mês é anterior ao início da cobrança deste mensalista.');
+          return;
+        }
+        togglePayment(member.id, month);
+      };
 
       tr.appendChild(td);
     }
@@ -1457,7 +1467,7 @@ function renderMonthlyPaymentsFilter() {
   state.members.forEach(m => {
     if (paidMemberIds.has(m.id)) {
       paidMembers.push(m);
-    } else {
+    } else if (month >= (m.start_month || 1)) {
       unpaidMembers.push(m);
     }
   });
@@ -1559,20 +1569,29 @@ async function togglePayment(memberId, month) {
 
 // SHOW ADD MEMBER PROMPT AND CALL API
 async function showAddMemberPrompt() {
-  const name = prompt('Digite o nome do novo mensalista:');
+  const name = prompt('Digite o nome da nova mensalista:');
   if (!name || name.trim() === '') return;
+
+  const startMonthStr = prompt('Digite o número do mês de início da cobrança (1 a 12):\nEx: 1 = Jan, 6 = Jun, 8 = Ago', '1');
+  if (startMonthStr === null) return; // cancelled
+  
+  const startMonth = parseInt(startMonthStr);
+  if (isNaN(startMonth) || startMonth < 1 || startMonth > 12) {
+    showToast('Mês inválido! Digite um número de 1 a 12.');
+    return;
+  }
 
   showLoader();
   try {
     const res = await fetch('/api/members', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, startMonth })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    showToast(`Mensalista "${data.name}" cadastrado!`);
+    showToast(`Mensalista "${data.name}" cadastrada!`);
     await fetchMensalidadesData();
   } catch (error) {
     console.error('Error adding member:', error);

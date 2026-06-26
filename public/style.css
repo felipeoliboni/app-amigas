@@ -144,10 +144,11 @@ body {
 .app-content {
   flex: 1;
   margin-top: 60px;
-  margin-bottom: 74px; /* Space for Bottom Nav */
+  margin-bottom: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch; /* Momentum scrolling */
   padding: 16px;
+  padding-bottom: calc(24px + var(--safe-area-bottom));
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;

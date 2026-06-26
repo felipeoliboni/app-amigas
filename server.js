@@ -436,13 +436,14 @@ app.get('/api/members', async (req, res) => {
 
 // 13. Create new member
 app.post('/api/members', async (req, res) => {
-  const { name } = req.body;
+  const { name, startMonth } = req.body;
   if (!name || name.trim() === '') {
     return res.status(400).json({ error: 'Nome é obrigatório.' });
   }
+  const sMonth = startMonth && parseInt(startMonth) >= 1 && parseInt(startMonth) <= 12 ? parseInt(startMonth) : 1;
   try {
-    const result = await db.run('INSERT INTO members (name) VALUES (?)', [name.trim().toUpperCase()]);
-    res.status(201).json({ id: result.lastID, name: name.trim().toUpperCase() });
+    const result = await db.run('INSERT INTO members (name, start_month) VALUES (?, ?)', [name.trim().toUpperCase(), sMonth]);
+    res.status(201).json({ id: result.lastID, name: name.trim().toUpperCase(), start_month: sMonth });
   } catch (error) {
     console.error('Error adding member:', error);
     if (error.message.includes('UNIQUE')) {

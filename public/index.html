@@ -31,7 +31,14 @@
     <body>
         <!-- App Header -->
         <header class="app-header">
-            <div class="header-content">
+            <div class="header-content" style="justify-content: flex-start; gap: 12px;">
+                <button id="menu-toggle-btn" class="menu-toggle-btn" onclick="toggleDrawer()" style="background: none; border: none; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; transition: background-color 0.2s;">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
                 <div class="logo-area">
                     <img
                         src="/logo.png"
@@ -40,13 +47,6 @@
                     />
                     <h1>Amigas do Bem</h1>
                 </div>
-                <button id="menu-toggle-btn" class="menu-toggle-btn" onclick="toggleDrawer()" style="background: none; border: none; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; transition: background-color 0.2s;">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
             </div>
         </header>
 

@@ -67,7 +67,8 @@ INSERT OR IGNORE INTO categories (name, requires_sizes) VALUES
 -- Members table
 CREATE TABLE IF NOT EXISTS members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    start_month INTEGER DEFAULT 1
 );
 
 -- Settings table
